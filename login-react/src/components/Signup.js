@@ -1,4 +1,4 @@
-import React, { useReducer, useEffect } from "react";
+import React, { useReducer, useEffect, useState } from "react";
 import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
 import TextField from "@material-ui/core/TextField";
 import Card from "@material-ui/core/Card";
@@ -6,6 +6,7 @@ import CardContent from "@material-ui/core/CardContent";
 import CardActions from "@material-ui/core/CardActions";
 import CardHeader from "@material-ui/core/CardHeader";
 import Button from "@material-ui/core/Button";
+import { useAuth } from "../contexts/AuthContext";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -105,6 +106,9 @@ const reducer = (state: State, action: Action): State => {
 const Signup = () => {
   const classes = useStyles();
   const [state, dispatch] = useReducer(reducer, initialState);
+  const { signup } = useAuth();
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (
@@ -124,19 +128,63 @@ const Signup = () => {
     }
   }, [state.email, state.password, state.passwordconfirm]);
 
-  const handleSignup = () => {
-    if (state.email === "abc@email.com" && state.password === "password") {
+  async function handleSignup(event) {
+    event.preventDefault();
+    try {
+      setError("");
+      setSuccessMessage("");
+      //sing up ボタンの無効化
+      dispatch({
+        type: "setIsButtonDisabled",
+        payload: true
+      });
+      await signup(state.email, state.passwordconfirm);
       dispatch({
         type: "signupSuccess",
         payload: "Signup Successfully"
       });
-    } else {
+      //sing up ボタンの有効化
       dispatch({
-        type: "signupFailed",
-        payload: "Incorrect email or password"
+        type: "setIsButtonDisabled",
+        payload: false
+      });
+      setSuccessMessage("アカウントの作成に成功しました");
+    } catch (e) {
+      console.log(e);
+      //エラーのメッセージの表示
+      switch (e.code) {
+        case "auth/network-request-failed":
+          setError(
+            "通信がエラーになったのか、またはタイムアウトになりました。通信環境がいい所で再度やり直してください。"
+          );
+          break;
+        case "auth/weak-password": //バリデーションでいかないようにする
+          setError("パスワードが短すぎます。6文字以上を入力してください。");
+          break;
+        case "auth/invalid-email": //バリデーションでいかないようにする
+          setError("メールアドレスが正しくありません");
+          break;
+        case "auth/email-already-in-use":
+          setError(
+            "メールアドレスがすでに使用されています。ログインするか別のメールアドレスで作成してください"
+          );
+          break;
+        case "auth/user-disabled":
+          setError("入力されたメールアドレスは無効（BAN）になっています。");
+          break;
+        default:
+          //想定外
+          setError(
+            "アカウントの作成に失敗しました。通信環境がいい所で再度やり直してください。"
+          );
+      }
+      //sing up ボタンの有効化
+      dispatch({
+        type: "setIsButtonDisabled",
+        payload: false
       });
     }
-  };
+  }
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.keyCode === 13 || event.which === 13) {
@@ -177,6 +225,8 @@ const Signup = () => {
         <CardHeader className={classes.header} title="Sign UP " />
         <CardContent>
           <div>
+            {error && <div variant="danger">{error}</div>}
+            {successMessage && <div variant="danger">{successMessage}</div>}
             <TextField
               error={state.isError}
               fullWidth

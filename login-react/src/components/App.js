@@ -1,10 +1,11 @@
 import Signup from "./Signup";
+import { AuthProvider } from "../contexts/AuthContext"
 
 function App() {
   return (
-    <div className="App">
+    <AuthProvider>
       <Signup />
-    </div>
+    </AuthProvider>
   );
 }
 export default App;
